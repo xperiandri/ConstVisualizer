@@ -4,13 +4,13 @@
 
 * Const Visualizer – a Visual Studio extension (VSIX) that shows the value of a `const` above the line of C# (and, when the option is on, Visual Basic) code that uses it; the features are described in #file:'README.md', which is short and partly out of date (a Visual Studio 2019 badge, and a build badge that points at another repository). There is no change log in the repository
 * Installs into Visual Studio 2022 from 17.14 up to, but not including, 18.0, on `amd64` and `arm64` (see #file:'src/ConstVisualizer/source.extension.vsixmanifest'), so Visual Studio 2026 is not a target; .NET Framework 4.7.2; `LangVersion` is 12.0 (set in #file:'Directory.Build.props'). The Visual Studio range is written in several places that must change together: the two `InstallationTarget` elements of the manifest (one per architecture), its `CoreEditor` prerequisite, `MinimumVisualStudioVersion` (16.0) in the project file and the README badge
-* The solution is #file:'ConstVisualizer.sln', in the repository root on purpose: Visual Studio reads `.mcp.json` from the folder of the solution (see "MCP Servers"). It has two old-style (non-SDK) projects: the extension #file:'src/ConstVisualizer/ConstVisualizer.csproj' and its tests #file:'src/ConstVisualizer.Tests/ConstVisualizer.Tests.csproj'. Every `.cs`, content and resource file is listed in them by hand, so a new file is neither compiled nor packaged until it is added there. Package versions are `PackageReference` items in the same files – there is no central package management, and #file:'nuget.config' maps every package to nuget.org
+* The solution is #file:'ConstVisualizer.slnx', in the repository root on purpose: Visual Studio reads `.mcp.json` from the folder of the solution (see "MCP Servers"). It uses the XML `.slnx` format. It needs the .NET SDK 9.0.200 or later, or the MSBuild of Visual Studio or Build Tools 17.13 or later (`dotnet sln` edits it). It has two old-style (non-SDK) projects: the extension #file:'src/ConstVisualizer/ConstVisualizer.csproj' and its tests #file:'src/ConstVisualizer.Tests/ConstVisualizer.Tests.csproj'. Every `.cs`, content and resource file is listed in them by hand, so a new file is neither compiled nor packaged until it is added there. Package versions are `PackageReference` items in the same files – there is no central package management, and #file:'nuget.config' maps every package to nuget.org
 * Windows only: building needs Visual Studio with the "Visual Studio extension development" workload and the .NET Framework 4.7.2 targeting pack. Use the MSBuild of Visual Studio; `dotnet build` does not build VSIX projects
 * Build from the repository root in PowerShell. `msbuild` is usually not on `PATH`, so find it with `vswhere` (add `-version '[17.0,18.0)'` to build with Visual Studio 2022 instead of the latest one; the CI runs on `windows-2022`, which has Visual Studio 2022); `DeployExtension=false` keeps the build from installing the extension into the Experimental instance:
 
   ```powershell
   $msbuild = & "${env:ProgramFiles(x86)}\Microsoft Visual Studio\Installer\vswhere.exe" -latest -prerelease -requires Microsoft.Component.MSBuild -find 'MSBuild\**\Bin\MSBuild.exe' | Select-Object -First 1
-  & $msbuild ConstVisualizer.sln -restore -p:Configuration=Debug -p:DeployExtension=false -v:m
+  & $msbuild ConstVisualizer.slnx -restore -p:Configuration=Debug -p:DeployExtension=false -v:m
   ```
 
 * Test: `src/ConstVisualizer.Tests` is an MSTest project with 20 tests of the string helpers in `StringExtensions.cs`. Run it from Test Explorer, or after a build with the `vstest.console.exe` of Visual Studio:
@@ -55,7 +55,7 @@
 │   │   ├── Resources/                        – the icon and the license text that go into the VSIX
 │   │   └── ConstVisualizer.csproj
 │   └── ConstVisualizer.Tests/                – the MSTest project
-├── ConstVisualizer.sln                       – the solution; it lives in the repository root so that Visual Studio finds `.mcp.json`
+├── ConstVisualizer.slnx                      – the solution; it lives in the repository root so that Visual Studio finds `.mcp.json`
 ├── Directory.Build.props                     – `LangVersion`
 ├── Directory.Build.targets                   – links `.claude/skills` to `.github/skills`
 ├── nuget.config, LICENSE, README.md
