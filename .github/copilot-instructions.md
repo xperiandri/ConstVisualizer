@@ -4,13 +4,13 @@
 
 * Const Visualizer – a Visual Studio extension (VSIX) that shows the value of a `const` above the line of C# (and, when the option is on, Visual Basic) code that uses it; the features are described in #file:'README.md', which is short and partly out of date (a Visual Studio 2019 badge, and a build badge that points at another repository). There is no change log in the repository
 * Installs into Visual Studio 2022 from 17.14 up to, but not including, 18.0, on `amd64` and `arm64` (see #file:'src/ConstVisualizer/source.extension.vsixmanifest'), so Visual Studio 2026 is not a target; .NET Framework 4.7.2; `LangVersion` is 12.0 (set in #file:'Directory.Build.props'). The Visual Studio range is written in several places that must change together: the two `InstallationTarget` elements of the manifest (one per architecture), its `CoreEditor` prerequisite, `MinimumVisualStudioVersion` (16.0) in the project file and the README badge
-* The solution is #file:'src/ConstVisualizer.sln'. It has two old-style (non-SDK) projects: the extension #file:'src/ConstVisualizer/ConstVisualizer.csproj' and its tests #file:'src/ConstVisualizer.Tests/ConstVisualizer.Tests.csproj'. Every `.cs`, content and resource file is listed in them by hand, so a new file is neither compiled nor packaged until it is added there. Package versions are `PackageReference` items in the same files – there is no central package management, and #file:'nuget.config' maps every package to nuget.org
+* The solution is #file:'ConstVisualizer.sln', in the repository root on purpose: Visual Studio reads `.mcp.json` from the folder of the solution (see "MCP Servers"). It has two old-style (non-SDK) projects: the extension #file:'src/ConstVisualizer/ConstVisualizer.csproj' and its tests #file:'src/ConstVisualizer.Tests/ConstVisualizer.Tests.csproj'. Every `.cs`, content and resource file is listed in them by hand, so a new file is neither compiled nor packaged until it is added there. Package versions are `PackageReference` items in the same files – there is no central package management, and #file:'nuget.config' maps every package to nuget.org
 * Windows only: building needs Visual Studio with the "Visual Studio extension development" workload and the .NET Framework 4.7.2 targeting pack. Use the MSBuild of Visual Studio; `dotnet build` does not build VSIX projects
 * Build from the repository root in PowerShell. `msbuild` is usually not on `PATH`, so find it with `vswhere` (add `-version '[17.0,18.0)'` to build with Visual Studio 2022 instead of the latest one; the CI runs on `windows-2022`, which has Visual Studio 2022); `DeployExtension=false` keeps the build from installing the extension into the Experimental instance:
 
   ```powershell
   $msbuild = & "${env:ProgramFiles(x86)}\Microsoft Visual Studio\Installer\vswhere.exe" -latest -prerelease -requires Microsoft.Component.MSBuild -find 'MSBuild\**\Bin\MSBuild.exe' | Select-Object -First 1
-  & $msbuild src\ConstVisualizer.sln -restore -p:Configuration=Debug -p:DeployExtension=false -v:m
+  & $msbuild ConstVisualizer.sln -restore -p:Configuration=Debug -p:DeployExtension=false -v:m
   ```
 
 * Test: `src/ConstVisualizer.Tests` is an MSTest project with 20 tests of the string helpers in `StringExtensions.cs`. Run it from Test Explorer, or after a build with the `vstest.console.exe` of Visual Studio:
@@ -34,7 +34,6 @@
 ├── art/                                      – screenshots (`screenshot.png` is the one the README shows)
 ├── src/
 │   ├── .editorconfig                         – code style and naming rules for everything below `src`
-│   ├── ConstVisualizer.sln
 │   ├── ConstVisualizer/                      – the extension, a single old-style project
 │   │   ├── ConstVisualizerPackage.cs         – the `AsyncPackage`: option page, solution events, running document table events, the first parse of the solution
 │   │   ├── ConstFinder.cs                    – the shared part of the partial class that collects the `const` declarations through the Roslyn workspace
@@ -56,6 +55,7 @@
 │   │   ├── Resources/                        – the icon and the license text that go into the VSIX
 │   │   └── ConstVisualizer.csproj
 │   └── ConstVisualizer.Tests/                – the MSTest project
+├── ConstVisualizer.sln                       – the solution; it lives in the repository root so that Visual Studio finds `.mcp.json`
 ├── Directory.Build.props                     – `LangVersion`
 ├── Directory.Build.targets                   – links `.claude/skills` to `.github/skills`
 ├── nuget.config, LICENSE, README.md
@@ -108,7 +108,7 @@ Agents discover servers from #file:'.mcp.json'; these are only hints on when to 
 
 * Use the `GitHub` server for code search in dependency repositories. In Claude Code it authenticates through `.claude/scripts/github-mcp-headers.ps1`, which reuses the GitHub token stored by Git Credential Manager, because the server does not support the OAuth dynamic client registration Claude Code needs.
 * Use the `Microsoft Learn` server for official Microsoft documentation, the Visual Studio extensibility documentation included. Visual Studio bundles this server itself, so `.mcp.json` lists it for Claude Code only.
-* Visual Studio reads `.mcp.json` from the folder of the solution, and the solution of this repository is in `src`, so Visual Studio does not look for the `.mcp.json` in the repository root; Claude Code reads it from there.
+* Visual Studio reads `.mcp.json` from the folder of the solution, and Claude Code reads it from the root of the repository. The solution is in the repository root so that one file serves both; keep it there.
 * When the solution is open in Visual Studio and an MCP server that exposes the IDE (`vs`) is connected, prefer its tools to the shell: build with it instead of resolving MSBuild, read the diagnostics from it instead of parsing the build output, and navigate with its symbol tools instead of text search.
 * When adding or changing a server, keep `servers` (Visual Studio / VS Code / GitHub Copilot) and `mcpServers` (Claude Code) in sync and sorted alphabetically by key, except for the servers that Visual Studio already bundles (Microsoft Learn, NuGet): those go only in `mcpServers`.
 
