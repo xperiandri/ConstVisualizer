@@ -3,9 +3,9 @@
 ## Project Details
 
 * Const Visualizer – a Visual Studio extension (VSIX) that shows the value of a `const` above the line of C# (and, when the option is on, Visual Basic) code that uses it; the features are described in #file:'README.md', which is short and partly out of date (a Visual Studio 2019 badge, and a build badge that points at another repository). There is no change log in the repository
-* Installs into Visual Studio 2022 from 17.14 up to, but not including, 18.0, on `amd64` and `arm64` (see #file:'src/ConstVisualizer/source.extension.vsixmanifest'), so Visual Studio 2026 is not a target; .NET Framework 4.7.2; `LangVersion` is 12.0 (set in #file:'Directory.Build.props'). The Visual Studio range is written in several places that must change together: the two `InstallationTarget` elements of the manifest (one per architecture), its `CoreEditor` prerequisite, `MinimumVisualStudioVersion` (16.0) in the project file and the README badge
-* The solution is #file:'ConstVisualizer.slnx', in the repository root on purpose: Visual Studio reads `.mcp.json` from the folder of the solution (see "MCP Servers"). It uses the XML `.slnx` format. It needs the .NET SDK 9.0.200 or later, or the MSBuild of Visual Studio or Build Tools 17.13 or later (`dotnet sln` edits it). It has two old-style (non-SDK) projects: the extension #file:'src/ConstVisualizer/ConstVisualizer.csproj' and its tests #file:'src/ConstVisualizer.Tests/ConstVisualizer.Tests.csproj'. Every `.cs`, content and resource file is listed in them by hand, so a new file is neither compiled nor packaged until it is added there. Package versions are `PackageReference` items in the same files – there is no central package management, and #file:'nuget.config' maps every package to nuget.org
-* Windows only: building needs Visual Studio with the "Visual Studio extension development" workload and the .NET Framework 4.7.2 targeting pack. Use the MSBuild of Visual Studio; `dotnet build` does not build VSIX projects
+* Installs into Visual Studio 2022 from 17.14 up to, but not including, 18.0, on `amd64` and `arm64` (see #file:'src/ConstVisualizer/source.extension.vsixmanifest'), so Visual Studio 2026 is not a target; .NET Framework 4.7.2; `LangVersion` is 12.0 (set in #file:'Directory.Build.props'). The Visual Studio range is written in several places that must change together: the two `InstallationTarget` elements of the manifest (one per architecture), its `CoreEditor` prerequisite and the README badge
+* The solution is #file:'ConstVisualizer.slnx', in the repository root on purpose: Visual Studio reads `.mcp.json` from the folder of the solution (see "MCP Servers"). It uses the XML `.slnx` format. It needs the .NET SDK 9.0.200 or later, or the MSBuild of Visual Studio or Build Tools 17.13 or later (`dotnet sln` edits it). It has two SDK-style projects (`Microsoft.NET.Sdk`, `net472`): the extension #file:'src/ConstVisualizer/ConstVisualizer.csproj' and its tests #file:'src/ConstVisualizer.Tests/ConstVisualizer.Tests.csproj'. The SDK includes the `.cs` files by globs, so a new file needs no entry in the project; a file that has to go into the VSIX needs a `<Content>` item with `IncludeInVSIX`. `Microsoft.VSSDK.BuildTools` builds the VSIX (`VSSDKBuildToolsAutoSetup` switches it on). Package versions are `PackageReference` items in the same files – there is no central package management, and #file:'nuget.config' maps every package to nuget.org
+* Windows only: building needs Visual Studio with the "Visual Studio extension development" workload and the .NET Framework 4.7.2 targeting pack. Use the MSBuild of Visual Studio
 * Build from the repository root in PowerShell. `msbuild` is usually not on `PATH`, so find it with `vswhere` (add `-version '[17.0,18.0)'` to build with Visual Studio 2022 instead of the latest one; the CI runs on `windows-2022`, which has Visual Studio 2022); `DeployExtension=false` keeps the build from installing the extension into the Experimental instance:
 
   ```powershell
@@ -20,12 +20,12 @@
   & "$vs\Common7\IDE\CommonExtensions\Microsoft\TestWindow\vstest.console.exe" src\ConstVisualizer.Tests\bin\Debug\ConstVisualizer.Tests.dll
   ```
 
-  Everything else (package load, the constant parser, the adornments, the options page) has no automated tests: run the extension in the Visual Studio Experimental instance (F5 starts `devenv.exe /rootsuffix Exp`, see the start options of the project) and open a solution that uses constants in other files
+  Everything else (package load, the constant parser, the adornments, the options page) has no automated tests: run the extension in the Visual Studio Experimental instance (F5 deploys it there and starts it; for an SDK-style VSIX project that needs Visual Studio 2026 18.5 or later and the `<Deploy>` element of the extension in the solution) and open a solution that uses constants in other files
 * CI: GitHub Actions (#file:'.github/workflows/build.yml') builds the solution in `Debug` on `windows-2022` for pushes and pull requests to `main` (changes to root-level `.md` files only are ignored), runs the tests through `josepho0918/vstest-action` and uploads the VSIX as an artifact. A step stamps the run number into the version in the manifest and in `Vsix.Version` of `src/ConstVisualizer/source.extension.cs`, so change versions by hand only for a deliberate release bump. The last steps publish a test badge to a gist of the original author; the upload runs on `main` only and needs a `GIST_TOKEN` secret that a fork does not have
 
 ## Solution Structure
 
-**IMPORTANT: Every new source file must be added to #file:'src/ConstVisualizer/ConstVisualizer.csproj'** (or to the test project): `<Compile Include>` for code and `<Content Include>` with `IncludeInVSIX` for files that go into the VSIX. A file that is created outside Visual Studio is not added automatically.
+**IMPORTANT: A new `.cs` file needs no entry in the project (the SDK globs include it), but a file that goes into the VSIX needs a `<Content Include>` item with `IncludeInVSIX` in #file:'src/ConstVisualizer/ConstVisualizer.csproj'**, as `Resources\Icon.png` and `Resources\LICENSE.txt` have. A `<Compile Update>` or `<None Update>` item carries the designer metadata of a few existing files (`OptionsGrid.cs`, `source.extension.cs`, the manifest); keep it when you edit the project.
 
 ```text
 /
@@ -34,7 +34,7 @@
 ├── art/                                      – screenshots (`screenshot.png` is the one the README shows)
 ├── src/
 │   ├── .editorconfig                         – code style and naming rules for everything below `src`
-│   ├── ConstVisualizer/                      – the extension, a single old-style project
+│   ├── ConstVisualizer/                      – the extension, a single SDK-style project
 │   │   ├── ConstVisualizerPackage.cs         – the `AsyncPackage`: option page, solution events, running document table events, the first parse of the solution
 │   │   ├── ConstFinder.cs                    – the shared part of the partial class that collects the `const` declarations through the Roslyn workspace
 │   │   ├── ConstFinder.CSharp.cs             – the C# part of it
@@ -92,6 +92,7 @@ The publisher identity in the manifest, the sponsorship message (`SponsorDetecto
 * `Microsoft.CodeAnalysis.CSharp`, `Microsoft.CodeAnalysis.VisualBasic` and `Microsoft.VisualStudio.LanguageServices` 4.14.0 – the Roslyn workspace that `ConstFinder` reads
 * `Microsoft.ApplicationInsights` – the usage telemetry of the release build
 * `MessagePack`, `Nerdbank.Streams`, `Microsoft.IO.Redist`, `System.Collections.Immutable` and `System.Text.Json` – dependencies that the project pins explicitly
+* `Microsoft.VSSDK.BuildTools` 18.5 – builds the VSIX (the `.pkgdef` file and the packaging); it is the NuGet package of the build tools, so the build uses them instead of the VSSDK targets that Visual Studio installs
 * `WarnAboutTODOs` – turns each `TODO` comment into a build warning
 * MSTest with `MSTest.Analyzers` (4.0.1) in the test project
 
